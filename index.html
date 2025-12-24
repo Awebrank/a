@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dice Game with Synchronized Movement</title>
+    <style>
+        /* ALL CSS REMAINS EXACTLY THE SAME - NO CHANGES TO STYLES */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #808080;
+            color: #fff;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 412px;
+            height: 100%;
+            max-height: 915px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            background: #808080;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .play-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            background: #808080;
+        }
+
+        .dice {
+            width: 56px;
+            height: 56px;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.1s linear;
+            pointer-events: none;
+        }
+        
+        .dice-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+            box-shadow: inset 0 0 7px rgba(0,0,0,0.3);
+        }
+        
+        /* Green dice */
+        .dice-green .dice-face {
+            background-color: #6CCF48;
+            border: 2px solid #5BB83E;
+            box-shadow: 
+                inset 0 0 7px rgba(0,0,0,0.3), 
+                5px 5px 15px rgba(0,0,0,0.8);
+        }
+        
+        /* Orange dice */
+        .dice-orange .dice-face {
+            background-color: #F28C28;
+            border: 2px solid #D97C1F;
+            box-shadow: 
+                inset 0 0 7px rgba(0,0,0,0.3), 
+                5px 5px 15px rgba(0,0,0,0.8);
+        }
+        
+        /* NEW: Bright dim black light on the vertical right side */
+        .dice-face::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 35%;
+            height: 100%;
+            background: linear-gradient(to left, 
+                rgba(0, 0, 0, 0.25) 0%,      /* Bright dim black at the edge */
+                rgba(0, 0, 0, 0.15) 20%, 
+                rgba(0, 0, 0, 0.08) 40%, 
+                rgba(0, 0, 0, 0.03) 60%, 
+                transparent 80%);
+            border-radius: 0 8px 8px 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Enhanced existing lighting effect for left side */
+        .dice-face::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(to right, 
+                rgba(255, 255, 255, 0.9) 0%, 
+                rgba(255, 255, 255, 0.7) 30%, 
+                rgba(255, 255, 255, 0.3) 60%, 
+                transparent 100%);
+            border-radius: 8px 0 0 8px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        /* Dice dot patterns */
+        .dots {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 45px;
+            height: 45px;
+            gap: 4px;
+        }
+        
+        .dot {
+            background-color: white;
+            border-radius: 50%;
+            margin: auto;
+            /* ENHANCED: Left-side black shadow and increased size by 2% */
+            box-shadow: 
+                inset 2px 2px 4px rgba(0,0,0,0.4),
+                -2px 0 3px rgba(0,0,0,0.3),  /* Black shadow on left side */
+                0 1px 2px rgba(255,255,255,0.5);
+            position: relative;
+        }
+        
+        /* Face 1 - 2% larger */
+        .face-1 .dot {
+            width: 16.32px; /* Increased by 2% from 16px */
+            height: 16.32px; /* Increased by 2% from 16px */
+        }
+        
+        /* Faces 2, 3, 4, 5, 6 - 2% larger */
+        .face-2 .dot,
+        .face-3 .dot,
+        .face-4 .dot,
+        .face-5 .dot,
+        .face-6 .dot {
+            width: 11.22px; /* Increased by 2% from 11px */
+            height: 11.22px; /* Increased by 2% from 11px */
+        }
+        
+        /* Position dots for each face */
+        .face-1 .dot:nth-child(1) { grid-area: 2 / 2; }
+        
+        /* Face 2 with 10% recess */
+        .face-2 .dot:nth-child(1) { grid-area: 1 / 1; transform: translate(4.5px, 4.5px); }
+        .face-2 .dot:nth-child(2) { grid-area: 3 / 3; transform: translate(-4.5px, -4.5px); }
+        
+        /* Face 3 with 10% recess */
+        .face-3 .dot:nth-child(1) { grid-area: 1 / 1; transform: translate(4.5px, 4.5px); }
+        .face-3 .dot:nth-child(2) { grid-area: 2 / 2; }
+        .face-3 .dot:nth-child(3) { grid-area: 3 / 3; transform: translate(-4.5px, -4.5px); }
+        
+        /* Face 4 with 10% recess */
+        .face-4 .dot:nth-child(1) { grid-area: 1 / 1; transform: translate(4.5px, 4.5px); }
+        .face-4 .dot:nth-child(2) { grid-area: 1 / 3; transform: translate(-4.5px, 4.5px); }
+        .face-4 .dot:nth-child(3) { grid-area: 3 / 1; transform: translate(4.5px, -4.5px); }
+        .face-4 .dot:nth-child(4) { grid-area: 3 / 3; transform: translate(-4.5px, -4.5px); }
+        
+        /* Face 5 with 10% recess */
+        .face-5 .dot:nth-child(1) { grid-area: 1 / 1; transform: translate(4.5px, 4.5px); }
+        .face-5 .dot:nth-child(2) { grid-area: 1 / 3; transform: translate(-4.5px, 4.5px); }
+        .face-5 .dot:nth-child(3) { grid-area: 2 / 2; }
+        .face-5 .dot:nth-child(4) { grid-area: 3 / 1; transform: translate(4.5px, -4.5px); }
+        .face-5 .dot:nth-child(5) { grid-area: 3 / 3; transform: translate(-4.5px, -4.5px); }
+        
+        /* Face 6 - corrected to have dots close together like a real die */
+        .face-6 .dot:nth-child(1) { grid-area: 1 / 1; }
+        .face-6 .dot:nth-child(2) { grid-area: 1 / 2; }
+        .face-6 .dot:nth-child(3) { grid-area: 1 / 3; }
+        .face-6 .dot:nth-child(4) { grid-area: 3 / 1; }
+        .face-6 .dot:nth-child(5) { grid-area: 3 / 2; }
+        .face-6 .dot:nth-child(6) { grid-area: 3 / 3; }
+        
+        /* Dice face positions in 3D space */
+        .face-1 { transform: translateZ(28px) rotateX(0deg) rotateY(0deg); }
+        .face-2 { transform: translateZ(-28px) rotateY(180deg); }
+        .face-3 { transform: translateX(-28px) rotateY(-90deg); }
+        .face-4 { transform: translateX(28px) rotateY(90deg); }
+        .face-5 { transform: translateY(-28px) rotateX(90deg); }
+        .face-6 { transform: translateY(28px) rotateX(-90deg); }
+
+        /* MODIFIED: Hide the game-info text */
+        .game-info {
+            display: none; /* Hides the Panel text */
+        }
+
+        .control-dot {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #000;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            width: 90%;
+            max-width: 500px;
+            z-index: 100;
+            display: none;
+            overflow-y: auto;
+            max-height: 90%;
+        }
+
+        .control-panel h2 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #ff9800;
+        }
+
+        .panels-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: rgba(50, 50, 50, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .panel.active {
+            border-color: #4caf50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .panel h3 {
+            margin-bottom: 15px;
+            color: #ff9800;
+            font-size: 1.1rem;
+        }
+
+        .panel-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .panel-input-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-input-group label {
+            flex: 1;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .panel-input-group input {
+            width: 60px;
+            padding: 5px;
+            border: none;
+            border-radius: 4px;
+            text-align: center;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        .current-result {
+            text-align: center;
+            font-weight: bold;
+            color: #ff9800;
+            margin: 15px 0;
+            font-size: 1.2rem;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 1rem;
+            flex: 1;
+        }
+
+        #showResult {
+            background-color: #9C27B0;
+        }
+
+        #saveAndExit {
+            background-color: #4caf50;
+        }
+
+        #closePanel {
+            background-color: #FF9800;
+        }
+
+        #cancelPanel {
+            background-color: #f44336;
+        }
+
+        .error-message {
+            color: #ff5252;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .success-message {
+            color: #4caf50;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        /* Footer icons styles - MODIFIED: Reduced size by 40% */
+        .footer-icons {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 5;
+        }
+
+        .left-icons, .right-icons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .icon {
+            width: 26.4px; /* Reduced by 40% from 44px */
+            height: 26.4px; /* Reduced by 40% from 44px */
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .icon:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            transform: scale(1.05);
+        }
+
+        .icon:active {
+            background-color: rgba(255, 255, 255, 0.6);
+            transform: scale(0.95);
+        }
+
+        /* MODIFIED: Hide the grid icon (the one with black dots) */
+        .grid-icon {
+            display: none !important;
+        }
+
+        /* Icon graphics - adjusted for new size */
+        .minus-icon, .plus-icon {
+            position: relative;
+            width: 12px; /* Reduced by 40% from 20px */
+            height: 12px; /* Reduced by 40% from 20px */
+        }
+
+        .minus-icon::before, .plus-icon::before, .plus-icon::after {
+            content: '';
+            position: absolute;
+            background-color: #000;
+        }
+
+        .minus-icon::before {
+            width: 100%;
+            height: 2px; /* Reduced by 33% from 3px */
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .plus-icon::before {
+            width: 100%;
+            height: 2px; /* Reduced by 33% from 3px */
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .plus-icon::after {
+            width: 2px; /* Reduced by 33% from 3px */
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .menu-icon {
+            position: relative;
+            width: 14.4px; /* Reduced by 40% from 24px */
+            height: 10.8px; /* Reduced by 40% from 18px */
+        }
+
+        .menu-icon::before,
+        .menu-icon::after,
+        .menu-icon .menu-line {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 2px; /* Reduced by 33% from 3px */
+            background-color: #000;
+            left: 0;
+            border-radius: 2px;
+        }
+
+        .menu-icon::before {
+            top: 0;
+        }
+
+        .menu-icon .menu-line {
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .menu-icon::after {
+            bottom: 0;
+        }
+
+        /* Hand-drawn phone icon */
+        .phone-drawn-icon {
+            position: relative;
+            width: 12px; /* Reduced by 40% from 20px */
+            height: 18px; /* Reduced by 40% from 30px */
+            background: transparent;
+        }
+
+        .phone-drawn-icon::before {
+            content: '';
+            position: absolute;
+            width: 9.6px; /* Reduced by 40% from 16px */
+            height: 14.4px; /* Reduced by 40% from 24px */
+            border: 2px solid #000;
+            border-radius: 3px; /* Reduced by 25% from 4px */
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .phone-drawn-icon::after {
+            content: '';
+            position: absolute;
+            width: 4.8px; /* Reduced by 40% from 8px */
+            height: 1.2px; /* Reduced by 40% from 2px */
+            background-color: #000;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 1px;
+        }
+
+        .phone-drawn-icon .speaker {
+            position: absolute;
+            width: 2.4px; /* Reduced by 40% from 4px */
+            height: 1.2px; /* Reduced by 40% from 2px */
+            background-color: #000;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 1px;
+        }
+
+        /* Grid icon - completely removed via display:none above */
+        .grid-icon {
+            display: none;
+        }
+
+        /* MODIFIED: Chat icon removed */
+        .chat-icon {
+            display: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .game-container {
+                border-radius: 0;
+                max-height: 100%;
+            }
+            
+            .panels-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .button-group, .button-row {
+                flex-direction: column;
+            }
+            
+            .game-info {
+                font-size: 1rem;
+                padding: 8px 12px;
+            }
+            
+            .control-panel {
+                padding: 15px;
+            }
+            
+            .panel {
+                padding: 10px;
+            }
+            
+            .panel h3 {
+                font-size: 1rem;
+            }
+            
+            .panel-input-group label {
+                font-size: 0.8rem;
+            }
+            
+            .panel-input-group input {
+                width: 50px;
+            }
+            
+            .footer-icons {
+                padding: 0 15px;
+            }
+            
+            .icon {
+                width: 26.4px; /* Maintain reduced size */
+                height: 26.4px; /* Maintain reduced size */
+            }
+        }
+
+        @media (max-height: 700px) {
+            .control-panel {
+                max-height: 85%;
+                overflow-y: auto;
+            }
+            
+            .panels-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .footer-icons {
+                bottom: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="play-area">
+            <!-- MODIFIED: Game info hidden -->
+            <div class="game-info" id="resultDisplay">
+                Panel 1: 1-1
+            </div>
+            
+            <!-- Dice will be created dynamically -->
+        </div>
+        
+        <!-- Footer icons - MODIFIED: Removed grid icon -->
+        <div class="footer-icons">
+            <!-- Left side icons -->
+            <div class="left-icons">
+                <div class="icon">
+                    <div class="menu-icon">
+                        <div class="menu-line"></div>
+                    </div>
+                </div>
+                <div class="icon">
+                    <div class="phone-drawn-icon">
+                        <div class="speaker"></div>
+                    </div>
+                </div>
+                <!-- MODIFIED: Grid icon removed -->
+            </div>
+            
+            <!-- Right side icons -->
+            <div class="right-icons">
+                <div class="icon">
+                    <div class="minus-icon"></div>
+                </div>
+                <div class="icon">
+                    <div class="plus-icon"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- MODIFIED: Chat icon removed -->
+    </div>
+    
+    <div class="control-dot" id="controlDot"></div>
+    
+    <div class="control-panel" id="controlPanel">
+        <h2>Dice Control Panel</h2>
+        
+        <div class="panels-container">
+            <!-- Panel 1 -->
+            <div class="panel" data-panel="1">
+                <h3>Panel 1</h3>
+                <div class="panel-inputs">
+                    <div class="panel-input-group">
+                        <label for="panel1Green">Green Dice (1-6):</label>
+                        <input type="number" id="panel1Green" min="1" max="6" value="1">
+                    </div>
+                    <div class="panel-input-group">
+                        <label for="panel1Orange">Orange Dice (1-6):</label>
+                        <input type="number" id="panel1Orange" min="1" max="6" value="1">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel 2 -->
+            <div class="panel" data-panel="2">
+                <h3>Panel 2</h3>
+                <div class="panel-inputs">
+                    <div class="panel-input-group">
+                        <label for="panel2Green">Green Dice (1-6):</label>
+                        <input type="number" id="panel2Green" min="1" max="6" value="2">
+                    </div>
+                    <div class="panel-input-group">
+                        <label for="panel2Orange">Orange Dice (1-6):</label>
+                        <input type="number" id="panel2Orange" min="1" max="6" value="2">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel 3 -->
+            <div class="panel" data-panel="3">
+                <h3>Panel 3</h3>
+                <div class="panel-inputs">
+                    <div class="panel-input-group">
+                        <label for="panel3Green">Green Dice (1-6):</label>
+                        <input type="number" id="panel3Green" min="1" max="6" value="3">
+                    </div>
+                    <div class="panel-input-group">
+                        <label for="panel3Orange">Orange Dice (1-6):</label>
+                        <input type="number" id="panel3Orange" min="1" max="6" value="3">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel 4 -->
+            <div class="panel" data-panel="4">
+                <h3>Panel 4</h3>
+                <div class="panel-inputs">
+                    <div class="panel-input-group">
+                        <label for="panel4Green">Green Dice (1-6):</label>
+                        <input type="number" id="panel4Green" min="1" max="6" value="4">
+                    </div>
+                    <div class="panel-input-group">
+                        <label for="panel4Orange">Orange Dice (1-6):</label>
+                        <input type="number" id="panel4Orange" min="1" max="6" value="4">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel 5 -->
+            <div class="panel" data-panel="5">
+                <h3>Panel 5</h3>
+                <div class="panel-inputs">
+                    <div class="panel-input-group">
+                        <label for="panel5Green">Green Dice (1-6):</label>
+                        <input type="number" id="panel5Green" min="1" max="6" value="5">
+                    </div>
+                    <div class="panel-input-group">
+                        <label for="panel5Orange">Orange Dice (1-6):</label>
+                        <input type="number" id="panel5Orange" min="1" max="6" value="5">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel 6 -->
+            <div class="panel" data-panel="6">
+                <h3>Panel 6</h3>
+                <div class="panel-inputs">
+                    <div class="panel-input-group">
+                        <label for="panel6Green">Green Dice (1-6):</label>
+                        <input type="number" id="panel6Green" min="1" max="6" value="6">
+                    </div>
+                    <div class="panel-input-group">
+                        <label for="panel6Orange">Orange Dice (1-6):</label>
+                        <input type="number" id="panel6Orange" min="1" max="6" value="6">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="error-message" id="errorMessage">
+            Please enter valid numbers between 1 and 6 for all dice.
+        </div>
+        
+        <div class="success-message" id="successMessage">
+            Result shown successfully!
+        </div>
+        
+        <div class="current-result" id="currentResult">
+            Current Panel: Panel 1 (1-1)
+        </div>
+        
+        <div class="button-group">
+            <button id="showResult">Show Result</button>
+            <button id="saveAndExit">Save All & Exit</button>
+        </div>
+        <div class="button-row">
+            <button id="closePanel">Close Panel</button>
+            <button id="cancelPanel">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state - All 6 panels with custom values
+        const panels = [
+            { green: 1, orange: 1 }, // Panel 1
+            { green: 2, orange: 2 }, // Panel 2
+            { green: 3, orange: 3 }, // Panel 3
+            { green: 4, orange: 4 }, // Panel 4
+            { green: 5, orange: 5 }, // Panel 5
+            { green: 6, orange: 6 }  // Panel 6
+        ];
+        
+        let currentPanelIndex = 0;
+        let clickCount = 0;
+        let lastClickTime = 0;
+        let isRolling = false;
+        let isDragging = false;
+        let draggedDie = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dieStartX = 0;
+        let dieStartY = 0;
+
+        // Timeout references for roll control
+        let rollStopTimeout = null;
+
+        // DOM Elements
+        const playArea = document.querySelector('.play-area');
+        const controlDot = document.getElementById('controlDot');
+        const controlPanel = document.getElementById('controlPanel');
+        const currentResult = document.getElementById('currentResult');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const closePanelBtn = document.getElementById('closePanel');
+        const cancelPanelBtn = document.getElementById('cancelPanel');
+        const saveAndExitBtn = document.getElementById('saveAndExit');
+        const showResultBtn = document.getElementById('showResult');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const panelElements = document.querySelectorAll('.panel');
+
+        // Dice data with physics properties
+        let dice = [];
+        let animationId = null;
+
+        // Play area boundaries
+        let playAreaRect = {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0
+        };
+
+        // Initialize the dice
+        initializeDice();
+        updatePlayAreaBounds();
+
+        // Set up event listeners
+        playArea.addEventListener('click', handleRoll);
+        playArea.addEventListener('touchstart', handleRoll);
+        
+        controlDot.addEventListener('click', handleControlDotClick);
+        controlDot.addEventListener('touchstart', handleControlDotClick);
+        closePanelBtn.addEventListener('click', saveCurrentAndClose);
+        closePanelBtn.addEventListener('touchstart', saveCurrentAndClose);
+        cancelPanelBtn.addEventListener('click', closeControlPanel);
+        cancelPanelBtn.addEventListener('touchstart', closeControlPanel);
+        saveAndExitBtn.addEventListener('click', saveAllAndExit);
+        saveAndExitBtn.addEventListener('touchstart', saveAllAndExit);
+        showResultBtn.addEventListener('click', showCurrentResult);
+        showResultBtn.addEventListener('touchstart', showCurrentResult);
+        
+        // Add click listeners to all panels
+        panelElements.forEach(panel => {
+            panel.addEventListener('click', (e) => {
+                const panelIndex = parseInt(panel.getAttribute('data-panel')) - 1;
+                selectPanel(panelIndex);
+            });
+            panel.addEventListener('touchstart', (e) => {
+                const panelIndex = parseInt(panel.getAttribute('data-panel')) - 1;
+                selectPanel(panelIndex);
+            });
+        });
+
+        // Add drag event listeners for free movement
+        document.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', handleDrag);
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('touchmove', handleDrag, { passive: false });
+        document.addEventListener('touchend', stopDrag);
+
+        // Update play area boundaries
+        function updatePlayAreaBounds() {
+            const rect = playArea.getBoundingClientRect();
+            playAreaRect = {
+                left: 0,
+                top: 0,
+                right: rect.width - 56,
+                bottom: rect.height - 56
+            };
+        }
+
+        // Function to create a dice element with the six-face design
+        function createDiceElement(id, color) {
+            const diceElement = document.createElement('div');
+            diceElement.className = `dice dice-${color}`;
+            diceElement.id = `dice${id}`;
+            
+            // Create all 6 faces of the dice with the exact design from the first code
+            const faces = [
+                { class: 'face-1', dots: 1 },
+                { class: 'face-2', dots: 2 },
+                { class: 'face-3', dots: 3 },
+                { class: 'face-4', dots: 4 },
+                { class: 'face-5', dots: 5 },
+                { class: 'face-6', dots: 6 }
+            ];
+            
+            // Create each face with the proper dot pattern
+            faces.forEach((face, index) => {
+                const faceElement = document.createElement('div');
+                faceElement.className = `dice-face ${face.class}`;
+                
+                // Create dots container
+                const dotsContainer = document.createElement('div');
+                dotsContainer.className = 'dots';
+                
+                // Add the appropriate number of dots
+                for (let i = 0; i < face.dots; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dotsContainer.appendChild(dot);
+                }
+                
+                faceElement.appendChild(dotsContainer);
+                diceElement.appendChild(faceElement);
+            });
+            
+            return diceElement;
+        }
+
+        // Initialize dice with faces and dots
+        function initializeDice() {
+            // Clear any existing dice
+            playArea.innerHTML = `
+                <div class="game-info" id="resultDisplay">
+                    Panel 1: 1-1
+                </div>
+            `;
+            dice = [];
+            
+            // Create orange dice
+            const orangeDice = createDiceElement(1, 'orange');
+            playArea.appendChild(orangeDice);
+            
+            // Create green dice
+            const greenDice = createDiceElement(2, 'green');
+            playArea.appendChild(greenDice);
+            
+            // Store dice data with physics properties
+            dice.push({
+                element: orangeDice,
+                color: 'orange',
+                value: panels[currentPanelIndex].orange,
+                x: 0,
+                y: 0,
+                vx: 0,
+                vy: 0,
+                rotationX: 0,
+                rotationY: 0,
+                rotationZ: 0,
+                angularVelocityX: 0,
+                angularVelocityY: 0,
+                angularVelocityZ: 0
+            });
+            
+            dice.push({
+                element: greenDice,
+                color: 'green',
+                value: panels[currentPanelIndex].green,
+                x: 0,
+                y: 0,
+                vx: 0,
+                vy: 0,
+                rotationX: 0,
+                rotationY: 0,
+                rotationZ: 0,
+                angularVelocityX: 0,
+                angularVelocityY: 0,
+                angularVelocityZ: 0
+            });
+            
+            // Position dice initially in center
+            centerDiceEqually();
+            
+            // Set initial rotations
+            setDiceRotation(orangeDice, panels[currentPanelIndex].orange);
+            setDiceRotation(greenDice, panels[currentPanelIndex].green);
+            
+            updateResultDisplay();
+        }
+
+        // Center the dice equally in the play area
+        function centerDiceEqually() {
+            const centerX = playAreaRect.right / 2;
+            const centerY = playAreaRect.bottom / 2;
+            
+            // Position dice with equal separation from center
+            const separation = 120;
+            
+            // Position orange dice to the left of center
+            dice[0].x = centerX - separation - 28;
+            dice[0].y = centerY - 28;
+            
+            // Position green dice to the right of center
+            dice[1].x = centerX + separation - 28;
+            dice[1].y = centerY - 28;
+            
+            updateDicePositions();
+        }
+
+        // Set the rotation for a dice based on value (1-6)
+        function setDiceRotation(diceElement, value) {
+            // Rotation mapping - matching the six-face design
+            const rotations = {
+                1: 'rotateX(0deg) rotateY(0deg) rotateZ(18deg)',
+                2: 'rotateY(180deg) rotateZ(15deg)',
+                3: 'rotateY(90deg) rotateZ(0deg)',
+                4: 'rotateY(-90deg) rotateZ(0deg)',
+                5: 'rotateX(-90deg) rotateY(18deg) rotateZ(0deg)',
+                6: 'rotateX(90deg) rotateY(8deg) rotateZ(0deg)'
+            };
+            
+            diceElement.style.transform = rotations[value];
+            diceElement.style.transition = 'transform 0.5s ease-out';
+            
+            // Remove transition after animation completes for physics
+            setTimeout(() => {
+                diceElement.style.transition = '';
+            }, 500);
+        }
+
+        // Function to cancel any ongoing roll
+        function cancelCurrentRoll() {
+            // Clear any pending timeouts
+            if (rollStopTimeout) {
+                clearTimeout(rollStopTimeout);
+                rollStopTimeout = null;
+            }
+            
+            // Stop any running animation
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // Reset rolling flag
+            isRolling = false;
+        }
+
+        // MODIFIED: Handle dice roll - starts immediately on each tap
+        function handleRoll(e) {
+            if (e.target === controlDot || controlPanel.contains(e.target) || 
+                e.target === resultDisplay || isDragging) {
+                return;
+            }
+            
+            // Cancel any ongoing roll
+            cancelCurrentRoll();
+            
+            // Start rolling immediately
+            isRolling = true;
+            startDiceRoll();
+            
+            // Stop the dice after 1.5 seconds (reduced from 2.3s for faster response)
+            rollStopTimeout = setTimeout(stopDiceRoll, 1500);
+        }
+
+        // Start the dice rolling with free movement and opposite spins
+        function startDiceRoll() {
+            // Give each dice independent random velocity for free movement
+            dice.forEach((die, index) => {
+                // Base speed for travel distance
+                const baseSpeed = 15 + Math.random() * 20;
+                const speed = baseSpeed * 1.12; // Net effect: 40% more distance, 20% slower overall
+                
+                const angle = Math.random() * Math.PI * 2; // Full 360 degrees
+                
+                die.vx = Math.cos(angle) * speed;
+                die.vy = Math.sin(angle) * speed;
+                
+                // Decreased spin speed by 20%
+                const baseSpinSpeed = 40 + Math.random() * 30;
+                const spinSpeed = baseSpinSpeed * 0.8; // 20% slower spin
+                
+                if (die.color === 'green') {
+                    // Green dice spins clockwise (positive angular velocity)
+                    die.angularVelocityX = spinSpeed * 0.7;
+                    die.angularVelocityY = spinSpeed * 0.9;
+                    die.angularVelocityZ = spinSpeed * 0.5;
+                } else {
+                    // Orange dice spins counterclockwise (negative angular velocity)
+                    die.angularVelocityX = -spinSpeed * 0.7;
+                    die.angularVelocityY = -spinSpeed * 0.9;
+                    die.angularVelocityZ = -spinSpeed * 0.5;
+                }
+                
+                // Reset rotations
+                die.rotationX = 0;
+                die.rotationY = 0;
+                die.rotationZ = 0;
+            });
+            
+            // Start animation loop
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            animationId = requestAnimationFrame(updateDicePhysics);
+        }
+
+        // Enhanced physics for continuous rolling
+        function updateDicePhysics() {
+            // Update positions and rotations for both dice
+            dice.forEach(die => {
+                // Apply velocity for free movement
+                die.x += die.vx;
+                die.y += die.vy;
+                
+                // Reduced friction for smoother movement
+                die.vx *= 0.99;
+                die.vy *= 0.99;
+                
+                // Enhanced bounce logic to prevent reversal and glitches
+                if (die.x < playAreaRect.left) {
+                    die.x = playAreaRect.left + 5; // Push slightly away from wall
+                    // Redirect away from wall instead of reversing
+                    if (die.vx < 0) die.vx = Math.abs(die.vx) * 0.9;
+                    // Add slight vertical randomization for natural bounce
+                    die.vy += (Math.random() - 0.5) * 8;
+                } else if (die.x > playAreaRect.right) {
+                    die.x = playAreaRect.right - 5; // Push slightly away from wall
+                    // Redirect away from wall instead of reversing
+                    if (die.vx > 0) die.vx = -Math.abs(die.vx) * 0.9;
+                    die.vy += (Math.random() - 0.5) * 8;
+                }
+                
+                if (die.y < playAreaRect.top) {
+                    die.y = playAreaRect.top + 5; // Push slightly away from wall
+                    // Redirect away from wall instead of reversing
+                    if (die.vy < 0) die.vy = Math.abs(die.vy) * 0.9;
+                    die.vx += (Math.random() - 0.5) * 8;
+                } else if (die.y > playAreaRect.bottom) {
+                    die.y = playAreaRect.bottom - 5; // Push slightly away from wall
+                    // Redirect away from wall instead of reversing
+                    if (die.vy > 0) die.vy = -Math.abs(die.vy) * 0.9;
+                    die.vx += (Math.random() - 0.5) * 8;
+                }
+                
+                // Apply rotation with opposite spins maintained
+                die.rotationX += die.angularVelocityX;
+                die.rotationY += die.angularVelocityY;
+                die.rotationZ += die.angularVelocityZ;
+                
+                // Reduced angular friction for continuous spin
+                die.angularVelocityX *= 0.998;
+                die.angularVelocityY *= 0.998;
+                die.angularVelocityZ *= 0.998;
+                
+                // Add minimum velocity threshold to prevent stopping before end
+                const minVelocity = 0.5;
+                if (Math.abs(die.vx) < minVelocity && die.vx !== 0) {
+                    die.vx = die.vx > 0 ? minVelocity : -minVelocity;
+                }
+                if (Math.abs(die.vy) < minVelocity && die.vy !== 0) {
+                    die.vy = die.vy > 0 ? minVelocity : -minVelocity;
+                }
+                
+                // Add minimum angular velocity threshold
+                const minAngularVelocity = 0.5;
+                if (Math.abs(die.angularVelocityX) < minAngularVelocity && die.angularVelocityX !== 0) {
+                    die.angularVelocityX = die.angularVelocityX > 0 ? minAngularVelocity : -minAngularVelocity;
+                }
+                if (Math.abs(die.angularVelocityY) < minAngularVelocity && die.angularVelocityY !== 0) {
+                    die.angularVelocityY = die.angularVelocityY > 0 ? minAngularVelocity : -minAngularVelocity;
+                }
+                if (Math.abs(die.angularVelocityZ) < minAngularVelocity && die.angularVelocityZ !== 0) {
+                    die.angularVelocityZ = die.angularVelocityZ > 0 ? minAngularVelocity : -minAngularVelocity;
+                }
+            });
+            
+            // Enhanced collision detection to prevent sticking and reversal
+            checkDiceCollisions();
+            
+            // Update visual positions and rotations
+            updateDicePositions();
+            
+            // Continue animation if still rolling
+            if (isRolling) {
+                animationId = requestAnimationFrame(updateDicePhysics);
+            }
+        }
+
+        // Enhanced collision function to prevent reversal and glitches
+        function checkDiceCollisions() {
+            const die1 = dice[0];
+            const die2 = dice[1];
+            
+            // Calculate distance between dice centers
+            const dx = die1.x - die2.x;
+            const dy = die1.y - die2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Dice size is 56px, use slightly larger threshold to prevent sticking
+            const collisionThreshold = 58;
+            
+            if (distance < collisionThreshold && distance > 0) {
+                // Calculate collision normal
+                const nx = dx / distance;
+                const ny = dy / distance;
+                
+                // Calculate relative velocity
+                const dvx = die1.vx - die2.vx;
+                const dvy = die1.vy - die2.vy;
+                
+                // Velocity along the normal
+                const velocityAlongNormal = dvx * nx + dvy * ny;
+                
+                // Only process collision if dice are moving toward each other
+                if (velocityAlongNormal > 0) return;
+                
+                // Increased restitution for more elastic collision
+                const restitution = 0.95;
+                
+                // Calculate impulse scalar with energy preservation
+                const impulseScalar = -(1 + restitution) * velocityAlongNormal / 2;
+                
+                // Apply impulse to velocities
+                die1.vx += impulseScalar * nx;
+                die1.vy += impulseScalar * ny;
+                die2.vx -= impulseScalar * nx;
+                die2.vy -= impulseScalar * ny;
+                
+                // Move dice apart to prevent sticking
+                const overlap = collisionThreshold - distance;
+                if (overlap > 0) {
+                    // Push dice apart proportionally to their mass (both 1)
+                    const pushX = (nx * overlap * 0.5);
+                    const pushY = (ny * overlap * 0.5);
+                    
+                    die1.x += pushX;
+                    die1.y += pushY;
+                    die2.x -= pushX;
+                    die2.y -= pushY;
+                }
+                
+                // Add angular effect based on collision (maintaining original spin direction)
+                const tangentX = -ny;
+                const tangentY = nx;
+                const tangentVelocity = dvx * tangentX + dvy * tangentY;
+                
+                const spinEffect = tangentVelocity * 0.15; // Slightly increased
+                
+                if (die1.color === 'green') {
+                    // Green keeps spinning clockwise
+                    die1.angularVelocityX += Math.abs(spinEffect) * 0.6;
+                    die1.angularVelocityY += Math.abs(spinEffect) * 0.8;
+                } else {
+                    // Orange keeps spinning counterclockwise
+                    die1.angularVelocityX -= Math.abs(spinEffect) * 0.6;
+                    die1.angularVelocityY -= Math.abs(spinEffect) * 0.8;
+                }
+                
+                if (die2.color === 'green') {
+                    // Green keeps spinning clockwise
+                    die2.angularVelocityX += Math.abs(spinEffect) * 0.6;
+                    die2.angularVelocityY += Math.abs(spinEffect) * 0.8;
+                } else {
+                    // Orange keeps spinning counterclockwise
+                    die2.angularVelocityX -= Math.abs(spinEffect) * 0.6;
+                    die2.angularVelocityY -= Math.abs(spinEffect) * 0.8;
+                }
+            }
+        }
+
+        // Update dice positions and rotations
+        function updateDicePositions() {
+            dice.forEach(die => {
+                die.element.style.left = `${die.x}px`;
+                die.element.style.top = `${die.y}px`;
+                
+                // Apply rotation with opposite spins maintained
+                die.element.style.transform = `rotateX(${die.rotationX}deg) rotateY(${die.rotationY}deg) rotateZ(${die.rotationZ}deg)`;
+            });
+        }
+
+        // Stop dice rolling
+        function stopDiceRoll() {
+            isRolling = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // Clear the stop timeout
+            if (rollStopTimeout) {
+                clearTimeout(rollStopTimeout);
+                rollStopTimeout = null;
+            }
+            
+            // Apply the final rotations with equal timing
+            dice.forEach((die, index) => {
+                const value = index === 0 ? panels[currentPanelIndex].orange : panels[currentPanelIndex].green;
+                setDiceRotation(die.element, value);
+            });
+            
+            // Update displays
+            updateCurrentResultDisplay();
+            updateResultDisplay();
+            
+            // Cycle to next panel
+            currentPanelIndex = (currentPanelIndex + 1) % 6;
+            updatePanelSelection();
+        }
+
+        // Drag and drop functionality for free movement
+        function startDrag(e) {
+            if (isRolling || controlPanel.style.display === 'block') return;
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            if (!clientX || !clientY) return;
+            
+            // Check which die was clicked
+            dice.forEach(die => {
+                const rect = die.element.getBoundingClientRect();
+                if (clientX >= rect.left && clientX <= rect.right &&
+                    clientY >= rect.top && clientY <= rect.bottom) {
+                    isDragging = true;
+                    draggedDie = die;
+                    dragStartX = clientX;
+                    dragStartY = clientY;
+                    dieStartX = die.x;
+                    dieStartY = die.y;
+                    
+                    // Add active state
+                    die.element.style.opacity = '0.9';
+                    die.element.style.boxShadow = '0 0 20px rgba(255,255,255,0.5)';
+                    
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function handleDrag(e) {
+            if (!isDragging || !draggedDie) return;
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            if (!clientX || !clientY) return;
+            
+            const deltaX = clientX - dragStartX;
+            const deltaY = clientY - dragStartY;
+            
+            // Update die position
+            draggedDie.x = Math.max(playAreaRect.left, Math.min(playAreaRect.right, dieStartX + deltaX));
+            draggedDie.y = Math.max(playAreaRect.top, Math.min(playAreaRect.bottom, dieStartY + deltaY));
+            
+            // Add spin while dragging (maintaining opposite directions)
+            if (draggedDie.color === 'green') {
+                // Green spins clockwise while dragging
+                draggedDie.rotationX += 3;
+                draggedDie.rotationY += 4;
+            } else {
+                // Orange spins counterclockwise while dragging
+                draggedDie.rotationX -= 3;
+                draggedDie.rotationY -= 4;
+            }
+            
+            // Check for collision while dragging
+            checkDiceCollisions();
+            
+            updateDicePositions();
+            e.preventDefault();
+        }
+
+        function stopDrag() {
+            if (!isDragging || !draggedDie) return;
+            
+            // Remove active state
+            draggedDie.element.style.opacity = '1';
+            draggedDie.element.style.boxShadow = '';
+            
+            // Add a little bounce when released
+            if (draggedDie.x <= playAreaRect.left + 5 || 
+                draggedDie.x >= playAreaRect.right - 5 ||
+                draggedDie.y <= playAreaRect.top + 5 || 
+                draggedDie.y >= playAreaRect.bottom - 5) {
+                
+                // Small bounce away from edge
+                if (draggedDie.x <= playAreaRect.left + 5) draggedDie.x += 10;
+                if (draggedDie.x >= playAreaRect.right - 5) draggedDie.x -= 10;
+                if (draggedDie.y <= playAreaRect.top + 5) draggedDie.y += 10;
+                if (draggedDie.y >= playAreaRect.bottom - 5) draggedDie.y -= 10;
+                
+                updateDicePositions();
+            }
+            
+            isDragging = false;
+            draggedDie = null;
+        }
+
+        // Update the result display on the main screen
+        function updateResultDisplay() {
+            // No action needed - the display is hidden
+        }
+
+        // Select a specific panel
+        function selectPanel(panelIndex) {
+            currentPanelIndex = panelIndex;
+            
+            // Apply the rotations with equal timing
+            setDiceRotation(dice[0].element, panels[currentPanelIndex].orange);
+            setDiceRotation(dice[1].element, panels[currentPanelIndex].green);
+            
+            // Update panel selection UI
+            updatePanelSelection();
+            
+            // Update current result display
+            updateCurrentResultDisplay();
+            updateResultDisplay();
+            
+            // Center the dice equally when selecting a panel
+            centerDiceEqually();
+        }
+
+        // Show current result without closing panel
+        function showCurrentResult() {
+            // Get input values for current panel
+            const greenInput = document.getElementById(`panel${currentPanelIndex+1}Green`);
+            const orangeInput = document.getElementById(`panel${currentPanelIndex+1}Orange`);
+            
+            // Validate inputs
+            const greenValue = parseInt(greenInput.value);
+            const orangeValue = parseInt(orangeInput.value);
+            
+            // Check if all inputs are valid numbers between 1-6
+            if (
+                isNaN(greenValue) || greenValue < 1 || greenValue > 6 ||
+                isNaN(orangeValue) || orangeValue < 1 || orangeValue > 6
+            ) {
+                // Show error message
+                errorMessage.style.display = 'block';
+                successMessage.style.display = 'none';
+                return;
+            }
+            
+            // Hide error message
+            errorMessage.style.display = 'none';
+            
+            // Apply the rotations
+            setDiceRotation(dice[1].element, greenValue);
+            setDiceRotation(dice[0].element, orangeValue);
+            
+            // Update current result display
+            currentResult.textContent = `Current Panel: Panel ${currentPanelIndex + 1} (${greenValue}-${orangeValue})`;
+            
+            // Show success message
+            successMessage.style.display = 'block';
+            successMessage.textContent = 'Result shown successfully!';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 2000);
+        }
+
+        // Save current panel and close
+        function saveCurrentAndClose() {
+            // Get input values for current panel
+            const greenInput = document.getElementById(`panel${currentPanelIndex+1}Green`);
+            const orangeInput = document.getElementById(`panel${currentPanelIndex+1}Orange`);
+            
+            // Validate inputs
+            const greenValue = parseInt(greenInput.value);
+            const orangeValue = parseInt(orangeInput.value);
+            
+            // Check if all inputs are valid numbers between 1-6
+            if (
+                isNaN(greenValue) || greenValue < 1 || greenValue > 6 ||
+                isNaN(orangeValue) || orangeValue < 1 || orangeValue > 6
+            ) {
+                // Show error message
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Please enter valid numbers between 1 and 6 for the current panel.';
+                successMessage.style.display = 'none';
+                return;
+            }
+            
+            // Hide error message
+            errorMessage.style.display = 'none';
+            
+            // Save the current panel
+            panels[currentPanelIndex].green = greenValue;
+            panels[currentPanelIndex].orange = orangeValue;
+            
+            // Apply the rotations
+            setDiceRotation(dice[1].element, greenValue);
+            setDiceRotation(dice[0].element, orangeValue);
+            
+            // Update current result display
+            updateCurrentResultDisplay();
+            updateResultDisplay();
+            
+            // Close panel
+            closeControlPanel();
+            
+            // Show success message
+            alert('Current panel saved! You can now play the game.');
+        }
+
+        // Save all panels and exit
+        function saveAllAndExit() {
+            let hasErrors = false;
+            
+            // Save all panels
+            for (let i = 0; i < 6; i++) {
+                const greenInput = document.getElementById(`panel${i+1}Green`);
+                const orangeInput = document.getElementById(`panel${i+1}Orange`);
+                
+                // Validate inputs
+                const greenValue = parseInt(greenInput.value);
+                const orangeValue = parseInt(orangeInput.value);
+                
+                // Check if all inputs are valid numbers between 1-6
+                if (
+                    isNaN(greenValue) || greenValue < 1 || greenValue > 6 ||
+                    isNaN(orangeValue) || orangeValue < 1 || orangeValue > 6
+                ) {
+                    hasErrors = true;
+                    continue;
+                }
+                
+                // Save the panel values
+                panels[i].green = greenValue;
+                panels[i].orange = orangeValue;
+            }
+            
+            if (hasErrors) {
+                // Show error message
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Some panels have invalid values. Please fix them before saving.';
+                successMessage.style.display = 'none';
+                return;
+            }
+            
+            // Hide error message
+            errorMessage.style.display = 'none';
+            
+            // Update the main dice with current panel
+            setDiceRotation(dice[1].element, panels[currentPanelIndex].green);
+            setDiceRotation(dice[0].element, panels[currentPanelIndex].orange);
+            updateCurrentResultDisplay();
+            updateResultDisplay();
+            
+            // Close panel
+            closeControlPanel();
+            
+            // Show success message
+            alert('All panels saved successfully! You can now play the game.');
+        }
+
+        // Update panel selection UI
+        function updatePanelSelection() {
+            panelElements.forEach((panel, index) => {
+                if (index === currentPanelIndex) {
+                    panel.classList.add('active');
+                } else {
+                    panel.classList.remove('active');
+                }
+            });
+        }
+
+        // Update current result display
+        function updateCurrentResultDisplay() {
+            currentResult.textContent = `Current Panel: Panel ${currentPanelIndex + 1} (${panels[currentPanelIndex].green}-${panels[currentPanelIndex].orange})`;
+        }
+
+        // Handle control dot clicks
+        function handleControlDotClick() {
+            const currentTime = new Date().getTime();
+            
+            if (currentTime - lastClickTime > 1000) {
+                clickCount = 0;
+            }
+            
+            clickCount++;
+            lastClickTime = currentTime;
+            
+            if (clickCount >= 5) {
+                openControlPanel();
+                clickCount = 0;
+            }
+        }
+
+        // Open control panel
+        function openControlPanel() {
+            // Hide error message
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            // Update panel selection
+            updatePanelSelection();
+            
+            // Show panel
+            controlPanel.style.display = 'block';
+        }
+
+        // Close control panel
+        function closeControlPanel() {
+            controlPanel.style.display = 'none';
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            updatePlayAreaBounds();
+            
+            dice.forEach(die => {
+                die.x = Math.min(die.x, playAreaRect.right);
+                die.y = Math.min(die.y, playAreaRect.bottom);
+            });
+            
+            updateDicePositions();
+        });
+
+        // Initialize with first panel selected
+        window.onload = function() {
+            updateCurrentResultDisplay();
+            updateResultDisplay();
+            updatePanelSelection();
+        };
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+                return;
+            }
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
